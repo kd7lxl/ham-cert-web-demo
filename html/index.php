@@ -30,15 +30,21 @@ function elog($s)
 function parse_dn($dn)
 {
 	elog("parse_dn $dn");
+	if ($dn[0] == '/') {
 	# /1.3.6.1.4.1.12348.1.1=N0CALL/CN=John Doe/emailAddress=jdoe@example.com
-	$a = explode('/', $dn);
-	if (count($a) < 4) {
-		elog("too few elements in DN: $dn");
-		return;
+		$a = explode('/', $dn);
+		if ($a[0] != '') {
+			elog("first DN element not empty: $dn");
+		} else {
+			array_shift($a);
+		}
+	} else {
+	# emailAddress=jdoe@example.com,CN=John Doe,1.3.6.1.4.1.12348.1.1=#13064B44374C584C
+		$a = explode(',', $dn);
 	}
-	
-	if ($a[0] != '') {
-		elog("first DN element not empty: $dn");
+
+	if (count($a) < 3) {
+		elog("too few elements in DN: $dn");
 		return;
 	}
 	
@@ -49,7 +55,7 @@ function parse_dn($dn)
 	);
 	
 	$e = array();
-	for ($i = 1; $i < count($a); $i++) {
+	for ($i = 0; $i < count($a); $i++) {
 		$b = explode('=', $a[$i]);
 		if (count($b) != 2) {
 			elog("DN element $i does not split nicely with '=': $dn");
@@ -63,6 +69,13 @@ function parse_dn($dn)
 		}
 	}
 	
+	# If callsign has an ASN.1 string header, decode as hex.
+	# This should be good enough for decoding callsigns despite
+	# not being a complete ASN.1 implementation.
+	if (substr($e['call'], 0, 5) == '#1306') {
+		$e['call'] = pack('H*', substr($e['call'], 5));
+	}
+
 	return $e;
 }
 
